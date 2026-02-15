@@ -4,6 +4,19 @@ source ~/.clanker/.env
 prompt="$*"
 [ ! -t 0 ] && input="$(cat)"
 
+read -r -d '' CLANKER_META_PROMPT <<'EOF'
+The user is giving you input from a larger piece of work and your response
+will be inserted directly into the work. You should respond with only the
+content that should be inserted, and nothing else. Do not include any
+explanations or formatting, just the content to be inserted. Keep your
+response as minimal as possible. When you are asked to replace something,
+only replace what is necessary, and do not add any additional content. You
+must maintain spacing and tabs and other formatting as much as possible.
+Don't forget to include the spacing in your response. If I do
+:'<,'>!clanker on some lines they will be replaced entirely with your
+response, so make sure it isn't messed up.
+EOF
+
 msgs='[]'
 [ -n "$prompt" ] && msgs=$(echo "$msgs" | jq --arg p "$prompt" '. + [{role:"user",content:$p}]')
 [ -n "$input" ] && msgs=$(echo "$msgs" | jq --arg i "$input" '. + [{role:"user",content:$i}]')
@@ -12,5 +25,5 @@ msgs='[]'
 curl -sS https://api.openai.com/v1/responses \
   -H "Authorization: Bearer $OPENAI_API_KEY" \
   -H "Content-Type: application/json" \
-  -d "$(jq -n --argjson m "$msgs" '{model:"gpt-4.1-mini",input:$m}')" \
+  -d "$(jq -n --argjson m "$msgs" --arg s "$CLANKER_META_PROMPT" '{model:"gpt-4.1-mini",instructions:$s,input:$m}')" \
   | jq -r '.output[0].content[0].text'
